@@ -1,0 +1,36 @@
+{
+  "name": "apple-store-connect-mcp",
+  "version": "1.0.0",
+  "description": "Apple Store Connect MCP Server with STDIO transport for Claude iOS compatibility",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts", 
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.2.0",
+    "express-rate-limit": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.0.0",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17", 
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node-fetch": "^2.6.11",
+    "@vercel/node": "^5.3.21",
+    "typescript": "^5.6.2",
+    "tsx": "^4.7.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

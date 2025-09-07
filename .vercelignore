@@ -1,0 +1,11 @@
+node_modules
+.env
+.env.local
+.git
+.gitignore
+README.md
+express-server
+*.nextjs
+.next
+app
+public

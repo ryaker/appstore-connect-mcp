@@ -1,0 +1,44 @@
+{
+  "name": "appstore-connect-mcp-server",
+  "version": "1.1.2",
+  "type": "module",
+  "scripts": {
+    "build:mcp": "tsc && shx chmod +x dist/src/*.js",
+    "build": "next build",
+    "vercel-build": "next build",
+    "start:mcp": "node dist/src/index.js",
+    "start": "next start",
+    "dev": "next dev",
+    "vercel:dev": "vercel dev",
+    "vercel:deploy": "vercel",
+    "vercel:prod": "vercel --prod"
+  },
+  "bin": {
+    "appstore-connect-mcp": "./dist/src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "@supabase/supabase-js": "^2.57.2",
+    "@vercel/edge": "^1.2.2",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "sharp": "^0.32.0",
+    "stytch": "^12.32.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^18.0.0",
+    "@types/react": "19.1.12",
+    "@vercel/node": "^5.3.21",
+    "next": "^15.5.2",
+    "shx": "^0.3.4",
+    "typescript": "^5.6.2"
+  }
+}

@@ -1,0 +1,36 @@
+schema_version: v1
+name: appstore-connect-mcp-server
+description: A Model Context Protocol (MCP) server for interacting with the App Store Connect API. Supports app management, beta testing, analytics, and optional sales/finance reporting.
+repository: https://github.com/JoshuaRileyDev/app-store-connect
+homepage: https://github.com/JoshuaRileyDev/app-store-connect
+license: MIT
+runtime: docker
+vendor:
+  name: Joshua Riley
+  github: JoshuaRileyDev
+mcp:
+  version: 1.0.3
+  protocol_version: "0.1"
+  compatible_clients:
+    - name: claude
+      version: ">= 0.5.8"
+config:
+  - name: APP_STORE_CONNECT_KEY_ID
+    description: Your App Store Connect API Key ID (found in App Store Connect > Users and Access > Keys)
+    required: true
+    example: "ABC123DEF4"
+  - name: APP_STORE_CONNECT_ISSUER_ID
+    description: Your App Store Connect Issuer ID (found in App Store Connect > Users and Access > Keys)
+    required: true
+    example: "12345678-1234-1234-1234-123456789012"
+  - name: APP_STORE_CONNECT_P8_PATH
+    description: Absolute path to your App Store Connect P8 private key file (downloaded from App Store Connect)
+    required: true
+    example: "/Users/username/.appstore/AuthKey_ABC123DEF4.p8"
+  - name: APP_STORE_CONNECT_VENDOR_NUMBER
+    description: |
+      Your vendor number from App Store Connect (optional - enables sales and finance reporting tools).
+      Find this in App Store Connect under "Sales and Trends" or "Payments and Financial Reports".
+      When configured, enables: download_sales_report, download_finance_report tools.
+    required: false
+    example: "123456789"
