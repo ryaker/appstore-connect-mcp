@@ -13,11 +13,11 @@ console.log('🔍 Debug: OAUTH_ENABLED =', process.env.OAUTH_ENABLED);
 console.log('🔍 Debug: OAuth configured =', !!process.env.OAUTH_ISSUER);
 
 // Create OAuth config from environment variables
-const oauthConfig = process.env.OAUTH_ENABLED?.trim() === 'true' ? {
+const oauthConfig = process.env.OAUTH_ENABLED?.trim() === 'true' && process.env.OAUTH_ISSUER ? {
   enabled: true,
-  issuer: process.env.OAUTH_ISSUER?.trim(),
-  audience: process.env.OAUTH_AUDIENCE?.trim(),
-  jwksUri: process.env.OAUTH_JWKS_URI?.trim() || `${process.env.OAUTH_ISSUER?.trim()}/.well-known/jwks.json`,
+  issuer: process.env.OAUTH_ISSUER.trim(),
+  audience: process.env.OAUTH_AUDIENCE?.trim() || `${process.env.OAUTH_ISSUER.trim()}/api/v2/`,
+  jwksUri: process.env.OAUTH_JWKS_URI?.trim() || `${process.env.OAUTH_ISSUER.trim()}/.well-known/jwks.json`,
 } : undefined;
 
 console.log('🔍 Debug: OAuth config =', JSON.stringify(oauthConfig, null, 2));
