@@ -1,0 +1,66 @@
+# Source files (only publish compiled)
+src/
+*.ts
+!dist/**/*.d.ts
+
+# Next.js build output
+.next/
+.vercel/
+
+# Config and dev files
+.env
+.env.*
+.vercelignore
+vercel.json
+api/
+Dockerfile
+smithery.yaml
+tsconfig.json
+
+# Test files
+test-*.js
+submit_app.py
+*.test.js
+*.spec.js
+
+# Docs and guides (keep README)
+docs/
+AUTH0_SETUP.md
+PUBLISHING.md
+OAUTH_MCP_AUTH0_GUIDE.md
+
+# Database
+supabase/
+
+# Build artifacts
+*.tgz
+npm-debug.log*
+
+# Version control
+.git/
+.gitignore
+
+# Editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.backup
+*.nextjs
+package.json.nextjs
+package-lock.json.nextjs
+package-vercel.json
+
+# Large data files
+3.2.json
+
+# Keep these
+!README.md
+!LICENSE
+!package.json
+!server.json
+!dist/
