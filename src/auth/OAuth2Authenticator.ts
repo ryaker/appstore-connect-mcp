@@ -1,7 +1,7 @@
 /**
  * OAuth 2.1 Authenticator for Apple Store Connect MCP Server
- * Implements JWT validation with Stytch integration
- * Based on KMSMcp pattern, adapted for Stytch
+ * Implements JWT validation with Auth0 integration
+ * Supports both JWT and opaque access tokens
  */
 
 import jwt, { JwtPayload } from 'jsonwebtoken'
@@ -68,18 +68,18 @@ export class OAuth2Authenticator {
       
       // Check if this is an opaque token (not a JWT)
       if (errorMsg.includes('not a valid JWT format') || errorMsg.includes('opaque token')) {
-        console.log('📝 Token appears to be an opaque access token, using Stytch validation')
+        console.log('📝 Token appears to be an opaque access token, using Auth0 userinfo validation')
       } else {
         console.log('⚠️ JWT validation failed:', errorMsg)
       }
       
       try {
-        // Fallback to Stytch token validation (for opaque tokens)
-        context = await this.validateStytchToken(token)
-      } catch (stytchError) {
-        console.error('❌ Stytch token validation failed:', stytchError instanceof Error ? stytchError.message : String(stytchError))
+        // Fallback to Auth0 userinfo validation (for opaque tokens)
+        context = await this.validateOpaqueToken(token)
+      } catch (opaqueError) {
+        console.error('❌ Opaque token validation failed:', opaqueError instanceof Error ? opaqueError.message : String(opaqueError))
         console.error('   Token preview:', token.substring(0, 20) + '...')
-        throw this.createAuthError('invalid_token', 'Token validation failed - neither JWT nor valid Stytch token')
+        throw this.createAuthError('invalid_token', 'Token validation failed - neither JWT nor valid opaque token')
       }
     }
 
@@ -117,8 +117,15 @@ export class OAuth2Authenticator {
     }
 
     return new Promise((resolve, reject) => {
+      // Accept tokens for any of our valid domains
+      const validAudiences: [string, ...string[]] = [
+        'https://asconnect.abundancecoach.ai',
+        'https://asconnect-mcp.vercel.app',
+        'https://asconnect-mcp-abundance-coach-ai.vercel.app'
+      ]
+      
       jwt.verify(token, this.getSigningKey.bind(this), {
-        audience: this.config.audience,
+        audience: validAudiences, // Accept multiple audiences
         issuer: this.config.issuer,
         algorithms: ['RS256', 'ES256']
       }, (err: any, decoded: any) => {
@@ -135,11 +142,8 @@ export class OAuth2Authenticator {
           return
         }
 
-        // Validate audience and resource parameter
-        if (payload.aud !== this.config.audience) {
-          reject(new Error('Invalid audience'))
-          return
-        }
+        // Audience is already validated by jwt.verify with the array
+        // No need for additional audience check
 
         resolve({
           isAuthenticated: true,
@@ -183,57 +187,51 @@ export class OAuth2Authenticator {
   }
 
   /**
-   * Validate token using Stytch API
+   * Validate opaque access token using Auth0's userinfo endpoint
    */
-  private async validateStytchToken(token: string): Promise<AuthContext> {
-    // Use Stytch's session validation endpoint
-    const stytchEndpoint = `${this.config.issuer}/v1/sessions/authenticate`
+  private async validateOpaqueToken(token: string): Promise<AuthContext> {
+    // For Auth0 opaque tokens, use the /userinfo endpoint
+    const userinfoEndpoint = `${this.config.issuer}/userinfo`
     
-    console.log(`🔍 Using Stytch session endpoint for token validation: ${stytchEndpoint}`)
+    console.log(`🔍 Validating opaque token via userinfo endpoint: ${userinfoEndpoint}`)
 
     try {
-      const response = await fetch(stytchEndpoint, {
-        method: 'POST',
+      const response = await fetch(userinfoEndpoint, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.STYTCH_SECRET}`
-        },
-        body: JSON.stringify({
-          session_token: token
-        })
+          'Authorization': `Bearer ${token}` // Use the token itself for Auth0 userinfo
+        }
       })
 
       if (!response.ok) {
-        throw new Error(`Stytch session validation failed: ${response.status} ${response.statusText}`)
+        const errorText = await response.text()
+        console.error(`❌ Auth0 userinfo validation failed: ${response.status} ${errorText}`)
+        throw new Error(`Token validation failed: ${response.status} ${response.statusText}`)
       }
 
-      const sessionData = await response.json() as any
-      console.log(`✅ Token validation successful via Stytch session endpoint`)
-      console.log(`  ↳ User ID: ${sessionData.session?.user_id || sessionData.user_id}`)
-      console.log(`  ↳ Email: ${sessionData.session?.user?.emails?.[0]?.email || 'N/A'}`)
-
-      const user = sessionData.session?.user || sessionData.user
-      const session = sessionData.session
+      const userInfo = await response.json() as any
+      console.log(`✅ Token validation successful via Auth0 userinfo endpoint`)
+      console.log(`  ↳ User ID: ${userInfo.sub}`)
+      console.log(`  ↳ Email: ${userInfo.email || 'N/A'}`)
+      console.log(`  ↳ Name: ${userInfo.name || 'N/A'}`)
 
       return {
         isAuthenticated: true,
         user: {
-          id: user?.user_id || session?.user_id || 'unknown',
-          email: user?.emails?.[0]?.email,
-          name: user?.name?.first_name && user?.name?.last_name 
-            ? `${user.name.first_name} ${user.name.last_name}` 
-            : user?.name?.first_name,
-          roles: []
+          id: userInfo.sub || 'unknown',
+          email: userInfo.email,
+          name: userInfo.name,
+          roles: userInfo.roles || []
         },
         token: {
           type: 'Bearer',
           value: token,
           scope: 'mcp:read mcp:write mcp:admin', // Assume full access for valid tokens
-          expiresAt: session?.expires_at ? new Date(session.expires_at) : undefined
+          expiresAt: userInfo.exp ? new Date(userInfo.exp * 1000) : undefined
         }
       }
     } catch (error) {
-      console.error(`❌ Token validation via Stytch failed:`, error instanceof Error ? error.message : String(error))
+      console.error(`❌ Token validation via Auth0 userinfo failed:`, error instanceof Error ? error.message : String(error))
       throw new Error('Token validation failed')
     }
   }

@@ -12,31 +12,54 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-// Apple Store Connect configuration - handle base64 encoded private key
-let privateKey = process.env.APPLE_PRIVATE_KEY!.trim();
-// Check if private key is base64 encoded (Vercel stores it this way)
-if (!privateKey.includes('BEGIN PRIVATE KEY')) {
-  try {
-    const decoded = Buffer.from(privateKey, 'base64').toString('utf-8').trim();
-    if (decoded.includes('BEGIN PRIVATE KEY')) {
-      privateKey = decoded;
+// Function to get Apple Store config at runtime
+function getAppStoreConfig(): AppStoreConfig {
+  // Apple Store Connect configuration - handle base64 encoded private key
+  let privateKey = process.env.APPLE_PRIVATE_KEY || '';
+  if (!privateKey) {
+    console.error('❌ APPLE_PRIVATE_KEY environment variable is not set!');
+    privateKey = ''; // Prevent crash, will fail when trying to use
+  } else {
+    privateKey = privateKey.trim();
+    console.log('🔑 Private key starts with:', privateKey.substring(0, 30));
+    
+    // Check if private key is base64 encoded (Vercel stores it this way)
+    if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+      try {
+        const decoded = Buffer.from(privateKey, 'base64').toString('utf-8').trim();
+        console.log('📝 Decoded key starts with:', decoded.substring(0, 30));
+        if (decoded.includes('BEGIN PRIVATE KEY')) {
+          privateKey = decoded;
+          console.log('✅ Successfully decoded base64 private key');
+        }
+      } catch (e) {
+        console.error('❌ Failed to decode base64:', e);
+        // Not base64, try replacing escaped newlines
+        privateKey = privateKey.replace(/\\n/g, '\n');
+      }
+    } else {
+      // Fix any escaped newlines
+      privateKey = privateKey.replace(/\\n/g, '\n');
+      console.log('✅ Using private key as-is (not base64)');
     }
-  } catch (e) {
-    // Not base64, try replacing escaped newlines
-    privateKey = privateKey.replace(/\\n/g, '\n');
   }
-} else {
-  // Fix any escaped newlines
-  privateKey = privateKey.replace(/\\n/g, '\n');
-}
 
-const appStoreConfig: AppStoreConfig = {
-  keyId: process.env.APPLE_KEY_ID!,
-  issuerId: process.env.APPLE_ISSUER_ID!,
-  privateKey: privateKey,
-  bundleId: process.env.APPLE_BUNDLE_ID!,
-  appStoreId: process.env.APPLE_APP_STORE_ID,
-};
+  const config: AppStoreConfig = {
+    keyId: (process.env.APPLE_KEY_ID || '').trim(),
+    issuerId: (process.env.APPLE_ISSUER_ID || '').trim(),
+    privateKey: privateKey.trim(),
+    bundleId: (process.env.APPLE_BUNDLE_ID || '').trim(),
+    appStoreId: process.env.APPLE_APP_STORE_ID?.trim(),
+  };
+
+  console.log('📱 Apple Store Connect Config:');
+  console.log('  Key ID:', config.keyId);
+  console.log('  Issuer ID:', config.issuerId);
+  console.log('  Bundle ID:', config.bundleId);
+  console.log('  Private Key:', privateKey ? 'Loaded' : 'Missing');
+  
+  return config;
+}
 
 /**
  * Create and configure MCP Server with Apple Store Connect tools
@@ -55,6 +78,7 @@ function createMcpServer(): Server {
   );
 
   // Initialize Apple Store Connect client
+  const appStoreConfig = getAppStoreConfig();
   const appStoreClient = new AppStoreConnectClient(appStoreConfig);
 
   // List available tools
@@ -859,7 +883,7 @@ async function main() {
   try {
     await httpTransport.start();
     console.log('✅ Apple Store Connect MCP Server is running!');
-    console.log(`📱 Apps available: ${appStoreConfig.bundleId}`);
+    console.log(`📱 Bundle ID: ${process.env.APPLE_BUNDLE_ID || 'Not configured'}`);
     console.log(`🔑 OAuth Authentication: ${process.env.OAUTH_ENABLED === 'true' ? 'Enabled' : 'Disabled'}`);
     if (process.env.OAUTH_ENABLED === 'true') {
       console.log(`🔐 OAuth Issuer: ${process.env.STYTCH_PROJECT_DOMAIN || 'https://test.stytch.com'}`);
