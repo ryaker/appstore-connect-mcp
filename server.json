@@ -2,103 +2,93 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
   "name": "io.github.ryaker/appstore-connect-mcp",
   "description": "MCP server for Apple Store Connect API integration with OAuth authentication support",
-  "version": "1.0.0",
-  "author": {
-    "name": "Ryan Aker",
-    "url": "https://github.com/ryaker"
-  },
-  "homepage": "https://github.com/ryaker/appstore-connect-mcp",
+  "status": "active",
   "repository": {
-    "type": "git",
-    "url": "https://github.com/ryaker/appstore-connect-mcp.git"
+    "url": "https://github.com/ryaker/appstore-connect-mcp",
+    "source": "github"
   },
-  "license": "MIT",
-  "categories": ["app-development", "analytics", "monitoring"],
-  "tags": [
-    "apple",
-    "app-store",
-    "ios",
-    "app-store-connect",
-    "analytics",
-    "reviews",
-    "ratings",
-    "oauth",
-    "auth0"
-  ],
-  "runtime": "node",
+  "version": "1.0.0",
   "packages": [
     {
       "registry_type": "npm",
+      "registry_base_url": "https://registry.npmjs.org",
       "identifier": "@ryaker/appstore-connect-mcp",
-      "version": "1.0.0"
-    }
-  ],
-  "tools": [
-    {
-      "name": "list_apps",
-      "description": "List all available apps in your App Store Connect account"
-    },
-    {
-      "name": "get_app_info",
-      "description": "Get detailed information about a specific app"
-    },
-    {
-      "name": "list_app_store_versions",
-      "description": "List all versions and their statuses for an app"
-    },
-    {
-      "name": "get_customer_reviews",
-      "description": "Get customer reviews for an app"
-    },
-    {
-      "name": "get_review_summaries",
-      "description": "Get aggregated review summary for an app across all territories"
-    },
-    {
-      "name": "get_builds",
-      "description": "Get recent builds for an app"
-    }
-  ],
-  "prompts": [
-    {
-      "name": "app_status",
-      "description": "Get the current status of your app including version info and recent reviews"
-    },
-    {
-      "name": "review_analysis",
-      "description": "Analyze recent customer reviews to identify common issues and feedback"
-    }
-  ],
-  "resources": [],
-  "config": {
-    "environment_variables": {
-      "required": [
-        "APPLE_KEY_ID",
-        "APPLE_ISSUER_ID",
-        "APPLE_PRIVATE_KEY"
-      ],
-      "optional": [
-        "APPLE_BUNDLE_ID",
-        "APPLE_APP_STORE_ID",
-        "OAUTH_ENABLED",
-        "OAUTH_ISSUER",
-        "OAUTH_AUDIENCE",
-        "OAUTH_JWKS_URI",
-        "SERVER_URL"
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environment_variables": [
+        {
+          "description": "Apple App Store Connect API Key ID",
+          "is_required": true,
+          "format": "string",
+          "is_secret": true,
+          "name": "APPLE_KEY_ID"
+        },
+        {
+          "description": "Apple App Store Connect Issuer ID",
+          "is_required": true,
+          "format": "string",
+          "is_secret": true,
+          "name": "APPLE_ISSUER_ID"
+        },
+        {
+          "description": "Apple App Store Connect Private Key (base64 encoded or raw)",
+          "is_required": true,
+          "format": "string",
+          "is_secret": true,
+          "name": "APPLE_PRIVATE_KEY"
+        },
+        {
+          "description": "Optional: Specific Bundle ID to filter apps",
+          "is_required": false,
+          "format": "string",
+          "is_secret": false,
+          "name": "APPLE_BUNDLE_ID"
+        },
+        {
+          "description": "Optional: Specific App Store ID",
+          "is_required": false,
+          "format": "string",
+          "is_secret": false,
+          "name": "APPLE_APP_STORE_ID"
+        },
+        {
+          "description": "Enable OAuth authentication (true/false)",
+          "is_required": false,
+          "format": "string",
+          "is_secret": false,
+          "name": "OAUTH_ENABLED"
+        },
+        {
+          "description": "OAuth issuer URL (e.g., https://your-tenant.auth0.com)",
+          "is_required": false,
+          "format": "string",
+          "is_secret": false,
+          "name": "OAUTH_ISSUER"
+        },
+        {
+          "description": "OAuth audience URL",
+          "is_required": false,
+          "format": "string",
+          "is_secret": false,
+          "name": "OAUTH_AUDIENCE"
+        },
+        {
+          "description": "OAuth JWKS URI for token validation",
+          "is_required": false,
+          "format": "string",
+          "is_secret": false,
+          "name": "OAUTH_JWKS_URI"
+        },
+        {
+          "description": "Server URL for OAuth deployment",
+          "is_required": false,
+          "format": "string",
+          "is_secret": false,
+          "name": "SERVER_URL"
+        }
       ]
-    },
-    "oauth": {
-      "enabled": true,
-      "provider": "auth0",
-      "discovery_url": "https://asconnect.abundancecoach.ai/.well-known/oauth-authorization-server"
     }
-  },
-  "installation": {
-    "npm": {
-      "instructions": "npm install -g @ryaker/appstore-connect-mcp"
-    },
-    "docker": {
-      "instructions": "docker pull ghcr.io/ryaker/appstore-connect-mcp:latest"
-    }
-  }
+  ]
 }
