@@ -1,9 +1,26 @@
 {
-  "name": "apple-store-connect-mcp",
+  "name": "@ryaker/appstore-connect-mcp",
   "version": "1.0.0",
-  "description": "Apple Store Connect MCP Server with STDIO transport for Claude iOS compatibility",
+  "description": "Apple Store Connect MCP Server with OAuth authentication support for Claude Desktop/iOS",
   "main": "dist/index.js",
   "type": "module",
+  "mcpName": "io.github.ryaker/appstore-connect-mcp",
+  "author": "Ryan Aker",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ryaker/appstore-connect-mcp.git"
+  },
+  "homepage": "https://github.com/ryaker/appstore-connect-mcp",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "apple",
+    "app-store-connect",
+    "ios",
+    "oauth",
+    "auth0"
+  ],
   "scripts": {
     "build": "tsc",
     "vercel-build": "tsc",
