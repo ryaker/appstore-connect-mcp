@@ -367,6 +367,103 @@ export class AppStoreConnectClient {
   /**
    * Update app store version localization (descriptions, keywords, etc.)
    */
+  private async getEditableAppInfoId(appId: string): Promise<string> {
+    const data = await this.makeRequest(`/v1/apps/${appId}/appInfos`);
+    const infos = data.data || [];
+    if (infos.length === 0) {
+      throw new Error(`No appInfo found for app ${appId}`);
+    }
+    // Apple keeps a read-only appInfo for the live version; the editable one is
+    // whichever is not yet distributed.
+    const editable = infos.find(
+      (info: any) => info.attributes?.appStoreState !== 'READY_FOR_DISTRIBUTION'
+    );
+    return (editable || infos[0]).id;
+  }
+
+  async getAppInfoLocalizations(appId: string): Promise<any[]> {
+    try {
+      const appInfoId = await this.getEditableAppInfoId(appId);
+      const response = await this.makeRequest(
+        `/v1/appInfos/${appInfoId}/appInfoLocalizations`
+      );
+
+      return response.data?.map((loc: any) => ({
+        id: loc.id,
+        locale: loc.attributes.locale,
+        name: loc.attributes.name,
+        subtitle: loc.attributes.subtitle,
+        privacyPolicyUrl: loc.attributes.privacyPolicyUrl,
+      })) || [];
+    } catch (error: any) {
+      console.error('Error getting app info localizations:', error);
+      throw new Error(`Failed to fetch app info localizations: ${error.message}`);
+    }
+  }
+
+  async updateAppInfoLocalization(params: {
+    appId: string;
+    locale: string;
+    name?: string;
+    subtitle?: string;
+    privacyPolicyUrl?: string;
+  }): Promise<any> {
+    try {
+      const existing = await this.getAppInfoLocalizations(params.appId);
+      const target = existing.find((loc: any) => loc.locale === params.locale);
+      if (!target) {
+        throw new Error(`No app info localization for locale ${params.locale}`);
+      }
+
+      const response = await this.makeRequest(`/v1/appInfoLocalizations/${target.id}`, {
+        method: 'PATCH',
+        body: {
+          data: {
+            type: 'appInfoLocalizations',
+            id: target.id,
+            attributes: {
+              name: params.name,
+              subtitle: params.subtitle,
+              privacyPolicyUrl: params.privacyPolicyUrl,
+            },
+          },
+        },
+      });
+
+      return {
+        id: response.data.id,
+        locale: response.data.attributes.locale,
+        name: response.data.attributes.name,
+        subtitle: response.data.attributes.subtitle,
+        privacyPolicyUrl: response.data.attributes.privacyPolicyUrl,
+      };
+    } catch (error: any) {
+      console.error('Error updating app info localization:', error);
+      throw new Error(`Failed to update app info localization: ${error.message}`);
+    }
+  }
+
+  async getAppStoreVersionLocalizations(versionId: string): Promise<any[]> {
+    try {
+      const endpoint = `/v1/appStoreVersions/${versionId}/appStoreVersionLocalizations`;
+      const response = await this.makeRequest(endpoint);
+
+      return response.data?.map((loc: any) => ({
+        id: loc.id,
+        locale: loc.attributes.locale,
+        description: loc.attributes.description,
+        keywords: loc.attributes.keywords,
+        whatsNew: loc.attributes.whatsNew,
+        promotionalText: loc.attributes.promotionalText,
+        supportUrl: loc.attributes.supportUrl,
+        marketingUrl: loc.attributes.marketingUrl,
+      })) || [];
+    } catch (error: any) {
+      console.error('Error getting app store version localizations:', error);
+      throw new Error(`Failed to fetch localizations from Apple Store Connect: ${error.message}`);
+    }
+  }
+
   async updateAppStoreVersionLocalization(params: {
     versionId: string;
     locale: string;

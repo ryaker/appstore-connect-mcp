@@ -203,6 +203,64 @@ function createMcpServer(): Server {
           },
         },
         {
+          name: 'get_app_store_version_localizations',
+          description: 'Read back all localizations (description, keywords, URLs) for an app store version',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              versionId: {
+                type: 'string',
+                description: 'The ID of the app store version',
+              },
+            },
+            required: ['versionId'],
+          },
+        },
+        {
+          name: 'get_app_info_localizations',
+          description: 'Read app-level localizations (name, subtitle, privacy policy URL)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              appId: {
+                type: 'string',
+                description: 'The ID of the app',
+              },
+            },
+            required: ['appId'],
+          },
+        },
+        {
+          name: 'update_app_info_localization',
+          description: 'Update app-level localization: name, subtitle (30 chars max), privacy policy URL',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              appId: {
+                type: 'string',
+                description: 'The ID of the app',
+              },
+              locale: {
+                type: 'string',
+                description: 'The locale code (e.g., "en-US")',
+              },
+              name: {
+                type: 'string',
+                description: 'App name for this locale (30 chars max)',
+              },
+              subtitle: {
+                type: 'string',
+                description: 'App subtitle for this locale (30 chars max)',
+              },
+              privacyPolicyUrl: {
+                type: 'string',
+                description: 'Privacy policy URL for this locale',
+              },
+            },
+            required: ['appId', 'locale'],
+          },
+        },
+        {
           name: 'update_app_store_version_localization',
           description: 'Update app store version localization (descriptions, keywords, what\'s new)',
           inputSchema: {
@@ -605,12 +663,84 @@ ${versions
 • Version ID: ${versionId}
 • Locale: ${locale}
 • Localization ID: ${localization.id}
-${description ? `• Description: ${description.substring(0, 100)}...` : ''}
-${keywords ? `• Keywords: ${keywords}` : ''}
-${whatsNew ? `• What's New: ${whatsNew.substring(0, 100)}...` : ''}
-${promotionalText ? `• Promotional Text: ${promotionalText}` : ''}
-${supportUrl ? `• Support URL: ${supportUrl}` : ''}
-${marketingUrl ? `• Marketing URL: ${marketingUrl}` : ''}`,
+(returned by App Store Connect)
+${localization.description ? `• Description: ${localization.description.substring(0, 100)}...` : ''}
+${localization.keywords ? `• Keywords: ${localization.keywords}` : ''}
+${localization.whatsNew ? `• What's New: ${localization.whatsNew.substring(0, 100)}...` : ''}
+${localization.promotionalText ? `• Promotional Text: ${localization.promotionalText}` : ''}
+${localization.supportUrl ? `• Support URL: ${localization.supportUrl}` : ''}
+${localization.marketingUrl ? `• Marketing URL: ${localization.marketingUrl}` : ''}`,
+              },
+            ],
+          };
+        }
+
+        case 'get_app_store_version_localizations': {
+          const { versionId } = args as { versionId: string };
+          const locs = await appStoreClient.getAppStoreVersionLocalizations(versionId);
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Localizations for version ${versionId}:\n\n${locs
+                  .map(
+                    (loc: any) =>
+                      `[${loc.locale}] (id ${loc.id})\n• Promotional Text: ${loc.promotionalText || '(none)'}\n• Keywords: ${loc.keywords || '(none)'}\n• Support URL: ${loc.supportUrl || '(none)'}\n• Marketing URL: ${loc.marketingUrl || '(none)'}\n• What's New: ${loc.whatsNew || '(none)'}\n• Description:\n${loc.description || '(none)'}`
+                  )
+                  .join('\n\n---\n\n')}`,
+              },
+            ],
+          };
+        }
+
+        case 'get_app_info_localizations': {
+          const { appId } = args as { appId: string };
+          const locs = await appStoreClient.getAppInfoLocalizations(appId);
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `App info localizations for app ${appId}:\n\n${locs
+                  .map(
+                    (loc: any) =>
+                      `[${loc.locale}] (id ${loc.id})\n• Name: ${loc.name || '(none)'}\n• Subtitle: ${loc.subtitle || '(none)'}\n• Privacy Policy URL: ${loc.privacyPolicyUrl || '(none)'}`
+                  )
+                  .join('\n\n')}`,
+              },
+            ],
+          };
+        }
+
+        case 'update_app_info_localization': {
+          const { appId, locale, name, subtitle, privacyPolicyUrl } = args as {
+            appId: string;
+            locale: string;
+            name?: string;
+            subtitle?: string;
+            privacyPolicyUrl?: string;
+          };
+
+          const loc = await appStoreClient.updateAppInfoLocalization({
+            appId,
+            locale,
+            name,
+            subtitle,
+            privacyPolicyUrl,
+          });
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `✅ App Info Localization Updated (returned by App Store Connect):
+• App ID: ${appId}
+• Locale: ${loc.locale}
+• Localization ID: ${loc.id}
+• Name: ${loc.name || '(none)'}
+• Subtitle: ${loc.subtitle || '(none)'}
+• Privacy Policy URL: ${loc.privacyPolicyUrl || '(none)'}`,
               },
             ],
           };
