@@ -377,7 +377,7 @@ function createMcpServer(): Server {
                 text: `Found ${apps.length} apps:\n\n${apps
                   .map(
                     (app) =>
-                      `• ${app.name} (${app.bundleId})\n  Status: ${app.status}\n  App Store ID: ${app.appStoreId || 'N/A'}\n  Platform: ${app.platform || 'N/A'}`
+                      `• ${app.name} (${app.bundleId})\n  App ID: ${app.id}\n  SKU: ${app.appStoreId || 'N/A'}\n  Primary locale: ${app.platform || 'N/A'}${app.status ? `\n  Status: ${app.status}` : ''}`
                   )
                   .join('\n\n')}`,
               },
