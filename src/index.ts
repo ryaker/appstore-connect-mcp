@@ -416,6 +416,52 @@ function createMcpServer(): Server {
             required: ['appId'],
           },
         },
+        {
+          name: 'list_screenshot_sets',
+          description:
+            'List screenshot sets on an app store version localization, with each screenshot\'s file name, dimensions and delivery state, in display order',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              localizationId: {
+                type: 'string',
+                description:
+                  'The ID of the app store version localization (from get_app_store_version_localizations)',
+              },
+            },
+            required: ['localizationId'],
+          },
+        },
+        {
+          name: 'upload_screenshots',
+          description:
+            'Upload screenshots to an app store version localization, in the order given. Creates the screenshot set if needed. Note there is no APP_IPHONE_69: 6.9-inch shots (1320x2868) go under APP_IPHONE_67.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              localizationId: {
+                type: 'string',
+                description: 'The ID of the app store version localization',
+              },
+              displayType: {
+                type: 'string',
+                description:
+                  'Screenshot display type, e.g. APP_IPHONE_67 (covers 6.7-inch 1290x2796 and 6.9-inch 1320x2868), APP_IPHONE_65, APP_IPAD_PRO_3GEN_129',
+              },
+              filePaths: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Absolute paths to the PNG files, in the display order you want',
+              },
+              replaceExisting: {
+                type: 'boolean',
+                description:
+                  'Delete an existing set of this display type first. Defaults to false, which adds to the existing set.',
+              },
+            },
+            required: ['localizationId', 'displayType', 'filePaths'],
+          },
+        },
       ],
     };
   });
@@ -950,6 +996,70 @@ ${details.primarySubcategoryTwo ? `• Primary Subcategory 2: ${details.primaryS
 ${details.secondaryCategory ? `• Secondary Category: ${details.secondaryCategory}` : ''}
 ${details.secondarySubcategoryOne ? `• Secondary Subcategory 1: ${details.secondarySubcategoryOne}` : ''}
 ${details.secondarySubcategoryTwo ? `• Secondary Subcategory 2: ${details.secondarySubcategoryTwo}` : ''}` : `No detailed info found for app ${appId}.`,
+              },
+            ],
+          };
+        }
+
+        case 'list_screenshot_sets': {
+          const { localizationId } = args as { localizationId: string };
+          const sets = await appStoreClient.listAppScreenshotSets(localizationId);
+
+          if (sets.length === 0) {
+            return {
+              content: [
+                { type: 'text', text: `No screenshot sets on localization ${localizationId}.` },
+              ],
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Screenshot sets on localization ${localizationId}:\n\n${sets
+                  .map(
+                    (set: any) =>
+                      `[${set.displayType}] (set ${set.id}), ${set.screenshots.length} screenshot(s)\n${set.screenshots
+                        .map(
+                          (shot: any, i: number) =>
+                            `  ${i + 1}. ${shot.fileName} ${shot.width}x${shot.height} ${shot.state}${
+                              shot.errors.length ? ` ERRORS: ${JSON.stringify(shot.errors)}` : ''
+                            }`
+                        )
+                        .join('\n')}`
+                  )
+                  .join('\n\n')}`,
+              },
+            ],
+          };
+        }
+
+        case 'upload_screenshots': {
+          const { localizationId, displayType, filePaths, replaceExisting } = args as {
+            localizationId: string;
+            displayType: string;
+            filePaths: string[];
+            replaceExisting?: boolean;
+          };
+
+          const result = await appStoreClient.uploadAppScreenshots({
+            localizationId,
+            displayType,
+            filePaths,
+            replaceExisting,
+          });
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Uploaded ${result.screenshots.length} screenshot(s) to the ${result.displayType} set (${result.setId}) in this order:\n\n${result.screenshots
+                  .map(
+                    (shot: any, i: number) =>
+                      `  ${i + 1}. ${shot.fileName} (${shot.fileSize} bytes, md5 ${shot.checksum}, id ${shot.id})`
+                  )
+                  .join('\n')}\n\nApple processes them asynchronously. Run list_screenshot_sets to confirm each one reaches COMPLETE.`,
               },
             ],
           };

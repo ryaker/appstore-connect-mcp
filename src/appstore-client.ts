@@ -4,6 +4,9 @@
  */
 
 import jwt from 'jsonwebtoken';
+import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
+import { createHash } from 'node:crypto';
 
 export interface AppStoreConfig {
   keyId: string;
@@ -133,7 +136,12 @@ export class AppStoreConnectClient {
       }
     }
 
-    return response.json();
+    // 204 No Content is a success for DELETE and for relationship updates.
+    if (response.status === 204) {
+      return null;
+    }
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   }
 
   /**
@@ -749,6 +757,179 @@ export class AppStoreConnectClient {
     } catch (error: any) {
       console.error('Error getting app info details:', error);
       throw new Error(`Failed to get app info details: ${error.message}`);
+    }
+  }
+
+  /**
+   * List the screenshot sets on an app store version localization, with the
+   * screenshots in each one and their delivery state.
+   */
+  async listAppScreenshotSets(localizationId: string): Promise<any[]> {
+    try {
+      const sets = await this.makeRequest(
+        `/v1/appStoreVersionLocalizations/${localizationId}/appScreenshotSets`
+      );
+
+      const detailed = [];
+      for (const set of sets.data || []) {
+        const shots = await this.makeRequest(
+          `/v1/appScreenshotSets/${set.id}/appScreenshots?limit=50`
+        );
+        const order = await this.makeRequest(
+          `/v1/appScreenshotSets/${set.id}/relationships/appScreenshots`
+        );
+        const byId: Record<string, any> = {};
+        for (const shot of shots.data || []) {
+          byId[shot.id] = shot;
+        }
+        detailed.push({
+          id: set.id,
+          displayType: set.attributes?.screenshotDisplayType,
+          screenshots: (order.data || []).map((ref: any) => {
+            const shot = byId[ref.id];
+            return {
+              id: ref.id,
+              fileName: shot?.attributes?.fileName,
+              width: shot?.attributes?.imageAsset?.width ?? null,
+              height: shot?.attributes?.imageAsset?.height ?? null,
+              state: shot?.attributes?.assetDeliveryState?.state,
+              errors: shot?.attributes?.assetDeliveryState?.errors || []
+            };
+          })
+        });
+      }
+      return detailed;
+    } catch (error: any) {
+      console.error('Error listing screenshot sets:', error);
+      throw new Error(`Failed to list screenshot sets: ${error.message}`);
+    }
+  }
+
+  /**
+   * Upload a set of screenshots to an app store version localization.
+   *
+   * Follows Apple's reserve/PUT/commit flow: POST appScreenshots to reserve a
+   * slot and receive uploadOperations, PUT the bytes each operation asks for,
+   * then PATCH uploaded:true with the file's MD5 so Apple can verify it.
+   * Files are placed in the order given.
+   *
+   * Note on displayType: there is no APP_IPHONE_69. The 6.9-inch set
+   * (1320x2868) is uploaded under APP_IPHONE_67, which accepts both that and
+   * the 6.7-inch 1290x2796.
+   */
+  async uploadAppScreenshots(params: {
+    localizationId: string;
+    displayType: string;
+    filePaths: string[];
+    replaceExisting?: boolean;
+  }): Promise<any> {
+    const { localizationId, displayType, filePaths, replaceExisting = false } = params;
+
+    try {
+      const existingSets = await this.makeRequest(
+        `/v1/appStoreVersionLocalizations/${localizationId}/appScreenshotSets`
+      );
+      let set = (existingSets.data || []).find(
+        (s: any) => s.attributes?.screenshotDisplayType === displayType
+      );
+
+      if (set && replaceExisting) {
+        await this.makeRequest(`/v1/appScreenshotSets/${set.id}`, { method: 'DELETE' });
+        set = null;
+      }
+
+      if (!set) {
+        const created = await this.makeRequest('/v1/appScreenshotSets', {
+          method: 'POST',
+          body: {
+            data: {
+              type: 'appScreenshotSets',
+              attributes: { screenshotDisplayType: displayType },
+              relationships: {
+                appStoreVersionLocalization: {
+                  data: { type: 'appStoreVersionLocalizations', id: localizationId }
+                }
+              }
+            }
+          }
+        });
+        set = created.data;
+      }
+
+      const uploaded = [];
+      for (const filePath of filePaths) {
+        const bytes = readFileSync(filePath);
+        const fileName = basename(filePath);
+        const checksum = createHash('md5').update(bytes).digest('hex');
+
+        const reserved = await this.makeRequest('/v1/appScreenshots', {
+          method: 'POST',
+          body: {
+            data: {
+              type: 'appScreenshots',
+              attributes: { fileName, fileSize: bytes.length },
+              relationships: {
+                appScreenshotSet: { data: { type: 'appScreenshotSets', id: set.id } }
+              }
+            }
+          }
+        });
+
+        const screenshotId = reserved.data.id;
+        for (const op of reserved.data.attributes?.uploadOperations || []) {
+          await this.uploadChunk(op, bytes);
+        }
+
+        await this.makeRequest(`/v1/appScreenshots/${screenshotId}`, {
+          method: 'PATCH',
+          body: {
+            data: {
+              type: 'appScreenshots',
+              id: screenshotId,
+              attributes: { uploaded: true, sourceFileChecksum: checksum }
+            }
+          }
+        });
+
+        uploaded.push({ id: screenshotId, fileName, fileSize: bytes.length, checksum });
+      }
+
+      // Pin the display order to the order the caller passed.
+      await this.makeRequest(`/v1/appScreenshotSets/${set.id}/relationships/appScreenshots`, {
+        method: 'PATCH',
+        body: { data: uploaded.map((s) => ({ type: 'appScreenshots', id: s.id })) }
+      });
+
+      return { setId: set.id, displayType, screenshots: uploaded };
+    } catch (error: any) {
+      console.error('Error uploading screenshots:', error);
+      throw new Error(`Failed to upload screenshots: ${error.message}`);
+    }
+  }
+
+  /**
+   * PUT one uploadOperation's slice of the file, using exactly the headers,
+   * offset and length Apple specified. These URLs carry their own auth, so no
+   * bearer token here.
+   */
+  private async uploadChunk(operation: any, bytes: Buffer): Promise<void> {
+    const headers: Record<string, string> = {};
+    for (const header of operation.requestHeaders || []) {
+      headers[header.name] = header.value;
+    }
+
+    const chunk = bytes.subarray(operation.offset, operation.offset + operation.length);
+    const response = await fetch(operation.url, {
+      method: operation.method || 'PUT',
+      headers,
+      body: chunk as any
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `upload chunk at offset ${operation.offset} failed: ${response.status} ${text}`
+      );
     }
   }
 }
