@@ -4,6 +4,7 @@
  */
 
 import jwt from 'jsonwebtoken';
+import { gunzipSync } from 'node:zlib';
 
 export interface AppStoreConfig {
   keyId: string;
@@ -11,6 +12,7 @@ export interface AppStoreConfig {
   privateKey: string;
   bundleId: string;
   appStoreId?: string;
+  vendorNumber?: string;
 }
 
 export interface AppInfo {
@@ -25,10 +27,12 @@ export interface AppInfo {
 
 export interface SalesData {
   date: string;
-  revenue: number;
-  currency: string;
-  transactionCount: number;
+  /** false when Apple has not generated the report for this date yet */
+  available: boolean;
   units: number;
+  /** Developer proceeds keyed by currency; a report mixes currencies, so they are never summed together */
+  proceeds: Record<string, number>;
+  byApp: { title: string; sku: string; units: number }[];
 }
 
 export interface AppStoreVersion {
@@ -186,28 +190,63 @@ export class AppStoreConnectClient {
    * Get sales reports for a specific date
    */
   async getSalesData(date?: string): Promise<SalesData> {
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    
+    // Daily reports are generated the following day, so default to yesterday.
+    const targetDate = date || new Date(Date.now() - 86_400_000).toISOString().split('T')[0];
+
     try {
-      const endpoint = `/v1/salesReports?filter[frequency]=DAILY&filter[reportDate]=${targetDate}&filter[reportType]=SALES&filter[vendorNumber]=${this.config.issuerId}`;
-      const data = await this.makeRequest(endpoint);
-      
-      // Calculate totals from sales report
-      const totalRevenue = data.data?.reduce((sum: number, item: any) => {
-        return sum + (parseFloat(item.attributes?.proceeds || 0));
-      }, 0) || 0;
+      if (!this.config.vendorNumber) {
+        throw new Error('APPLE_VENDOR_NUMBER is not set (App Store Connect → Payments and Financial Reports, top left)');
+      }
 
-      const totalUnits = data.data?.reduce((sum: number, item: any) => {
-        return sum + (parseInt(item.attributes?.units || 0));
-      }, 0) || 0;
+      const endpoint = `/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY` +
+        `&filter[vendorNumber]=${encodeURIComponent(this.config.vendorNumber)}&filter[reportDate]=${targetDate}`;
+      const url = `${this.baseUrl}${endpoint}`;
+      console.log(`Making GET request to: ${url}`);
 
-      return {
-        date: targetDate,
-        revenue: totalRevenue,
-        currency: 'USD',
-        transactionCount: data.data?.length || 0,
-        units: totalUnits,
-      };
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${this.generateToken()}`, 'Accept': 'application/a-gzip' },
+      });
+
+      const empty: SalesData = { date: targetDate, available: true, units: 0, proceeds: {}, byApp: [] };
+
+      // Apple answers 404 both for "no sales that day" and "report not generated yet";
+      // only the error detail tells them apart.
+      if (response.status === 404) {
+        const body: any = await response.json().catch(() => ({}));
+        const detail = String(body.errors?.[0]?.detail || '').toLowerCase();
+        return { ...empty, available: !detail.includes('not available yet') };
+      }
+      if (!response.ok) {
+        throw new Error(`App Store API error: ${response.status} - ${(await response.text()).slice(0, 500)}`);
+      }
+
+      // The report is a gzipped TSV, not JSON.
+      const tsv = gunzipSync(Buffer.from(await response.arrayBuffer())).toString('utf8');
+      const [header, ...rows] = tsv.trim().split('\n');
+      const cols = header.split('\t');
+      const col = (name: string) => cols.indexOf(name);
+      const iUnits = col('Units'), iProceeds = col('Developer Proceeds'), iCurrency = col('Currency of Proceeds');
+      const iTitle = col('Title'), iSku = col('SKU');
+
+      const byApp = new Map<string, { title: string; sku: string; units: number }>();
+      for (const row of rows) {
+        if (!row.trim()) continue;
+        const f = row.split('\t');
+        const units = Number(f[iUnits]) || 0;
+        empty.units += units;
+
+        // Developer Proceeds is per unit.
+        const proceeds = (Number(f[iProceeds]) || 0) * units;
+        if (proceeds !== 0) {
+          empty.proceeds[f[iCurrency]] = (empty.proceeds[f[iCurrency]] || 0) + proceeds;
+        }
+
+        const app = byApp.get(f[iSku]) || { title: f[iTitle], sku: f[iSku], units: 0 };
+        app.units += units;
+        byApp.set(f[iSku], app);
+      }
+
+      return { ...empty, byApp: [...byApp.values()].sort((a, b) => b.units - a.units) };
     } catch (error: any) {
       console.error('Error getting sales data:', error);
       throw new Error(`Failed to fetch sales data from Apple Store Connect: ${error.message}`);

@@ -107,6 +107,7 @@ Once configured, try asking your AI assistant:
 | `APPLE_PRIVATE_KEY` | **Yes** | Raw PEM content or Base64-encoded string of your `.p8` key |
 | `APPLE_BUNDLE_ID` | Optional | Restrict tool scope to a specific app bundle ID |
 | `APPLE_APP_STORE_ID` | Optional | Restrict tool scope to a specific App Store ID |
+| `APPLE_VENDOR_NUMBER` | For sales | Your vendor number, shown in App Store Connect under Payments and Financial Reports. Required by `get_sales_data` |
 | `OAUTH_ENABLED` | Optional | Set `true` if deploying as a remote server via OAuth 2.0 |
 
 💻 Local Development

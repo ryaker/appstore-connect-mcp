@@ -50,6 +50,7 @@ function getAppStoreConfig(): AppStoreConfig {
     privateKey: privateKey.trim(),
     bundleId: (process.env.APPLE_BUNDLE_ID || '').trim(),
     appStoreId: process.env.APPLE_APP_STORE_ID?.trim(),
+    vendorNumber: process.env.APPLE_VENDOR_NUMBER?.trim(),
   };
 
   console.log('📱 Apple Store Connect Config:');
@@ -115,7 +116,7 @@ function createMcpServer(): Server {
             properties: {
               date: {
                 type: 'string',
-                description: 'Date in YYYY-MM-DD format (optional, defaults to today)',
+                description: 'Date in YYYY-MM-DD format (optional, defaults to yesterday; daily reports are generated the next day)',
               },
             },
           },
@@ -420,15 +421,26 @@ function createMcpServer(): Server {
           const { date } = args as { date?: string };
           const salesData = await appStoreClient.getSalesData(date);
 
+          if (!salesData.available) {
+            return {
+              content: [{ type: 'text', text: `The sales report for ${salesData.date} is not available yet. Apple generates daily reports the following day.` }],
+            };
+          }
+
+          const proceeds = Object.entries(salesData.proceeds)
+            .map(([currency, amount]) => `${currency} ${amount.toFixed(2)}`)
+            .join(', ') || 'none';
+          const apps = salesData.byApp
+            .map(app => `  • ${app.title} (${app.sku}): ${app.units} units`)
+            .join('\n');
+
           return {
             content: [
               {
                 type: 'text',
                 text: `Sales Data for ${salesData.date}:
-• Revenue: ${salesData.currency} ${salesData.revenue.toFixed(2)}
-• Units Sold: ${salesData.units}
-• Transaction Count: ${salesData.transactionCount}
-• Currency: ${salesData.currency}`,
+• Units: ${salesData.units}
+• Developer Proceeds: ${proceeds}${apps ? `\n• By app:\n${apps}` : ''}`,
               },
             ],
           };
