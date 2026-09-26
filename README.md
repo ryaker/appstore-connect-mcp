@@ -108,6 +108,7 @@ Once configured, try asking your AI assistant:
 | `APPLE_BUNDLE_ID` | Optional | Restrict tool scope to a specific app bundle ID |
 | `APPLE_APP_STORE_ID` | Optional | Restrict tool scope to a specific App Store ID |
 | `OAUTH_ENABLED` | Optional | Set `true` if deploying as a remote server via OAuth 2.0 |
+| `HOST` | Optional | Interface the HTTP server (`npm start`) binds to. Defaults to `127.0.0.1`; set `0.0.0.0` to accept remote connections, and enable OAuth when you do |
 
 💻 Local Development
 If you want to contribute or modify the source code locally:

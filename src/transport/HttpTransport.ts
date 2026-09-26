@@ -566,8 +566,8 @@ export class HttpTransport {
       try {
         this.server = createServer(this.app)
         
-        this.server.listen(this.config.port, this.config.host || '0.0.0.0', () => {
-          console.log(`🌐 Apple Store Connect MCP HTTP Transport listening on ${this.config.host || '0.0.0.0'}:${this.config.port}`)
+        this.server.listen(this.config.port, this.config.host || '127.0.0.1', () => {
+          console.log(`🌐 Apple Store Connect MCP HTTP Transport listening on ${this.config.host || '127.0.0.1'}:${this.config.port}`)
           console.log(`📡 MCP endpoint: http://${this.config.host || 'localhost'}:${this.config.port}/mcp`)
           if (this.config.oauth?.enabled) {
             console.log(`🔐 OAuth enabled with issuer: ${this.config.oauth.issuer}`)
