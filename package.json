@@ -25,7 +25,8 @@
     "build": "tsc",
     "vercel-build": "tsc",
     "dev": "tsx src/index.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.5",
@@ -52,5 +53,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "bin": {
+    "appstore-connect-mcp": "dist/stdio.js"
   }
 }

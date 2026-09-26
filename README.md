@@ -104,10 +104,13 @@ Once configured, try asking your AI assistant:
 | :--- | :--- | :--- |
 | `APPLE_KEY_ID` | **Yes** | Your App Store Connect API Key ID |
 | `APPLE_ISSUER_ID` | **Yes** | Your App Store Connect Issuer ID |
-| `APPLE_PRIVATE_KEY` | **Yes** | Raw PEM content or Base64-encoded string of your `.p8` key |
+| `APPLE_PRIVATE_KEY` | **Yes*** | Raw PEM content or Base64-encoded string of your `.p8` key |
+| `APPLE_PRIVATE_KEY_PATH` | **Yes*** | Path to your `.p8` file, instead of `APPLE_PRIVATE_KEY` (stdio only) |
 | `APPLE_BUNDLE_ID` | Optional | Restrict tool scope to a specific app bundle ID |
 | `APPLE_APP_STORE_ID` | Optional | Restrict tool scope to a specific App Store ID |
 | `OAUTH_ENABLED` | Optional | Set `true` if deploying as a remote server via OAuth 2.0 |
+
+\* Set one of `APPLE_PRIVATE_KEY` or `APPLE_PRIVATE_KEY_PATH`.
 
 💻 Local Development
 If you want to contribute or modify the source code locally:
@@ -123,7 +126,8 @@ npm install
 npm run build
 
 # 3. Test locally
-npm start
+node dist/stdio.js   # stdio, what MCP clients launch
+npm start            # HTTP server, for remote deployment
 ```
 🤝 Contributing & Support
 Feel free to open an Issue for bug reports, missing App Store Connect endpoints, or feature requests!
