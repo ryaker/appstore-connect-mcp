@@ -635,8 +635,14 @@ export class HttpTransport {
       
       // Management API credentials for creating clients
       const MANAGEMENT_API_CLIENT = {
-        client_id: '1O03edTKfEJNTg59CF29XcOTLtnc6OHh',
-        client_secret: 'Sxbl5OaXjqfdb1NYlgFyfJr0afbynb6UOIsqFEZiQPxB98h6tRTfUmbRnJUHulQG'
+        client_id: process.env.AUTH0_MANAGEMENT_CLIENT_ID || '',
+        client_secret: process.env.AUTH0_MANAGEMENT_CLIENT_SECRET || ''
+      }
+      if (!MANAGEMENT_API_CLIENT.client_id || !MANAGEMENT_API_CLIENT.client_secret) {
+        return res.status(500).json({
+          error: 'server_error',
+          error_description: 'Auth0 Management API credentials are not configured'
+        })
       }
       
       // Get Management API token with proper scopes

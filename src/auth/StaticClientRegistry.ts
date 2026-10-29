@@ -7,8 +7,8 @@ import { ClientMapping, clientRegistry } from './ClientRegistry.js'
 
 // Using the Management API client that has connections enabled in Auth0
 const STATIC_AUTH0_CLIENT = {
-  client_id: '1O03edTKfEJNTg59CF29XcOTLtnc6OHh', // Management API client with connections
-  client_secret: 'Sxbl5OaXjqfdb1NYlgFyfJr0afbynb6UOIsqFEZiQPxB98h6tRTfUmbRnJUHulQG'
+  client_id: process.env.AUTH0_MANAGEMENT_CLIENT_ID || '',
+  client_secret: process.env.AUTH0_MANAGEMENT_CLIENT_SECRET || ''
 }
 
 // Generate a unique Claude client ID for this session
@@ -18,6 +18,10 @@ const STATIC_CLAUDE_CLIENT_ID = `claude_${Date.now()}_${Math.random().toString(3
  * Initialize static client mappings
  */
 export async function initializeStaticMappings(): Promise<void> {
+  if (!STATIC_AUTH0_CLIENT.client_id || !STATIC_AUTH0_CLIENT.client_secret) {
+    throw new Error('AUTH0_MANAGEMENT_CLIENT_ID and AUTH0_MANAGEMENT_CLIENT_SECRET must be set')
+  }
+
   // Store the static mapping
   await clientRegistry.storeMapping(
     STATIC_CLAUDE_CLIENT_ID,
